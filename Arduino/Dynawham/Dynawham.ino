@@ -3,6 +3,8 @@
   https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message
   https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
 */
+#include "led_ctrl.h"
+
 
 #define MIDI_CHANNEL      0x00
 
