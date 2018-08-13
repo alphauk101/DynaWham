@@ -5,6 +5,7 @@
 */
 #include "led_ctrl.h"
 
+led LED;
 
 #define MIDI_CHANNEL      0x00
 
@@ -21,7 +22,7 @@ void setup() {
   Serial.begin(31250);/*The baud rate of midi*/
   //Serial.begin(57600);
 
-
+  LED.led_init();
 }
 
 bool dir = true;
@@ -42,14 +43,30 @@ void loop() {
     }
      send_cont(exp_v);
   */
+
   
-  
-  send_program_change(exp_v);
+   set_treadle_led(exp_v);
+  //send_program_change(exp_v);
   exp_v++;
-  if(exp_v  == 15)exp_v = 0;
+  if(exp_v  == 127)exp_v = 0;
   
   delay(CMD_DELAY);
 
+}
+
+void set_treadle_led(uint8_t v)
+{
+  byte tr = 0;
+  tr = (v/1)?(1<<0):0;
+  tr |= (v/2)?(1<<1):0;
+  tr |= (v/4)?(1<<2):0;
+  tr |= (v/8)?(1<<3):0;
+  tr |= (v/16)?(1<<4):0;
+  tr |= (v/32)?(1<<5):0;
+  tr |= (v/64)?(1<<6):0;
+  tr |= (v/128)?(1<<7):0;
+
+  LED.set_treadle(tr);
 }
 
 /*Pass the byte for the the program change*/
