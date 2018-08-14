@@ -32,6 +32,8 @@ void setup() {
 
   /*Pass the buffer to the presets initilisation*/
   PRESETS.init(&midi_buff[0]);
+
+  PRESETS.set_mode(RUN);
   /*reset this*/
   byte_to_send = 0;
 }
@@ -56,7 +58,7 @@ void loop() {
   */
 
 
-  set_treadle_led(exp_v);
+  //set_treadle_led(exp_v);
   //send_program_change(exp_v);
   exp_v++;
   if (exp_v  == 127)exp_v = 0;
@@ -111,9 +113,9 @@ void send_program_change(byte program)
 void send_cont(byte cont)
 {
   /*First the channel/status*/
-  midi_buff[0] = (CONTINUE_MSG | MIDI_CHANNEL);
+  midi_buff[0] = (CONTINUE_MSG|MIDI_CHANNEL);
   /*CC byte*/
-  midi_buff[1] =  (EXP_PEDAL & 0x7F);
+  midi_buff[1] =  (EXP_PEDAL&0x7F);
   /*exp value*/
   midi_buff[2] =  (cont);
 
