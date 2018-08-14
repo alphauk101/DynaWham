@@ -4,8 +4,14 @@
   https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
 */
 #include "led_ctrl.h"
+#include "presets.h"
+#include "defines.h"
+
 
 led LED;
+presets PRESETS;
+
+uint16_t byte_to_send = 0;
 
 #define MIDI_CHANNEL      0x00
 
@@ -15,7 +21,7 @@ led LED;
 #define PACKET_LENGTH     5
 byte midi_buff[PACKET_LENGTH];
 
-#define CMD_DELAY         100
+#define CMD_DELAY         100 /*The minimum time between a midi command due to transistion and processing time etc.*/
 
 void setup() {
 
@@ -23,6 +29,11 @@ void setup() {
   //Serial.begin(57600);
 
   LED.led_init();
+
+  /*Pass the buffer to the presets initilisation*/
+  PRESETS.init(&midi_buff[0]);
+  /*reset this*/
+  byte_to_send = 0;
 }
 
 bool dir = true;
@@ -44,27 +55,43 @@ void loop() {
      send_cont(exp_v);
   */
 
-  
-   set_treadle_led(exp_v);
+
+  set_treadle_led(exp_v);
   //send_program_change(exp_v);
   exp_v++;
-  if(exp_v  == 127)exp_v = 0;
-  
+  if (exp_v  == 127)exp_v = 0;
+
   delay(CMD_DELAY);
 
+  byte_to_send = PRESETS.nudge();
+  if (byte_to_send > 0) {
+    /*Send these bytes to the program*/
+  }
 }
 
 void set_treadle_led(uint8_t v)
 {
   byte tr = 0;
-  tr = (v/1)?(1<<0):0;
-  tr |= (v/2)?(1<<1):0;
-  tr |= (v/4)?(1<<2):0;
-  tr |= (v/8)?(1<<3):0;
-  tr |= (v/16)?(1<<4):0;
-  tr |= (v/32)?(1<<5):0;
-  tr |= (v/64)?(1<<6):0;
-  tr |= (v/128)?(1<<7):0;
+  /*
+    tr = (v/1)?(1<<0):0;
+    tr |= (v/2)?(1<<1):0;
+    tr |= (v/4)?(1<<2):0;
+    tr |= (v/8)?(1<<3):0;
+    tr |= (v/16)?(1<<4):0;
+    tr |= (v/32)?(1<<5):0;
+    tr |= (v/64)?(1<<6):0;
+    tr |= (v/128)?(1<<7):0;
+  */
+
+  int b = v / 16;
+  for (int a = 0 ; a < 8; a++)
+  {
+    if (a <= b) {
+      tr |= (1 << a);
+    }
+  }
+
+
 
   LED.set_treadle(tr);
 }
