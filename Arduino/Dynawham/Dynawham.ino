@@ -6,15 +6,18 @@
 #include "led_ctrl.h"
 #include "presets.h"
 #include "defines.h"
-
+#include "TimerOne.h"
 
 led LED;
 presets PRESETS;
 
 uint16_t byte_to_send = 0;
+#define POT_SAMPLE_TIME   100000
 
 #define MIDI_CHANNEL      0x00
-
+#define POT_PIN           A0
+#define POT_MAX           590
+#define POT_MIN           0
 #define PROGRAM_CHANGE    0xC0
 #define CONTINUE_MSG      0xB0
 #define EXP_PEDAL         0x0B
@@ -23,17 +26,24 @@ byte midi_buff[PACKET_LENGTH];
 
 #define CMD_DELAY         100 /*The minimum time between a midi command due to transistion and processing time etc.*/
 
+volatile int pot_value = 0;
+int tmp_p_value = 0;
+int CC_midi;
+
 void setup() {
 
   Serial.begin(31250);/*The baud rate of midi*/
   //Serial.begin(57600);
+
+  Timer1.initialize(POT_SAMPLE_TIME); // set a timer of length 100000 microseconds (or 0.1 sec - or 10Hz => the led will blink 5 times, 5 cycles of on-and-off, per second)
+  Timer1.attachInterrupt( timerIsr ); // attach the service routine here
 
   LED.led_init();
 
   /*Pass the buffer to the presets initilisation*/
   PRESETS.init(&midi_buff[0]);
 
-  PRESETS.set_mode(RUN);
+  PRESETS.set_mode(NONE);
   /*reset this*/
   byte_to_send = 0;
 }
@@ -58,17 +68,24 @@ void loop() {
   */
 
 
-  //set_treadle_led(exp_v);
-  //send_program_change(exp_v);
-  exp_v++;
-  if (exp_v  == 127)exp_v = 0;
-
-  delay(CMD_DELAY);
+  
 
   byte_to_send = PRESETS.nudge();
   if (byte_to_send > 0) {
     /*Send these bytes to the program*/
+    byte p = midi_buff[0];
+    send_program_change(p);
   }
+
+  if( (pot_value < (tmp_p_value-5)) || (pot_value > (tmp_p_value+5)) )
+  {
+    CC_midi = map(pot_value, POT_MIN, POT_MAX, 0, 127);/*127 = max midi CC value*/
+    send_cont(CC_midi);
+    set_treadle_led(CC_midi);
+    tmp_p_value = pot_value;
+  }
+  
+  delay(CMD_DELAY);
 }
 
 void set_treadle_led(uint8_t v)
@@ -92,9 +109,6 @@ void set_treadle_led(uint8_t v)
       tr |= (1 << a);
     }
   }
-
-
-
   LED.set_treadle(tr);
 }
 
@@ -113,9 +127,9 @@ void send_program_change(byte program)
 void send_cont(byte cont)
 {
   /*First the channel/status*/
-  midi_buff[0] = (CONTINUE_MSG|MIDI_CHANNEL);
+  midi_buff[0] = (CONTINUE_MSG | MIDI_CHANNEL);
   /*CC byte*/
-  midi_buff[1] =  (EXP_PEDAL&0x7F);
+  midi_buff[1] =  (EXP_PEDAL & 0x7F);
   /*exp value*/
   midi_buff[2] =  (cont);
 
@@ -129,6 +143,11 @@ void send_midi(int len)
   }
 }
 
+void timerIsr()
+{
+  //Serial.println(analogRead(POT_PIN));
+  pot_value = analogRead(POT_PIN);
+}
 
 
 

@@ -51,7 +51,7 @@ uint16_t presets::nudge() {
 
   /*If there is a length value above 0 then we can assume that the appropriate bytes for this program change
     have been inserted into the buffer*/
-  return presets_data.tx_len = 0;
+  return presets_data.tx_len;
 }
 
 void presets::run_nudge()
