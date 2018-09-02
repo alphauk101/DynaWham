@@ -14,10 +14,12 @@ presets PRESETS;
 uint16_t byte_to_send = 0;
 #define POT_SAMPLE_TIME   100000
 
+#define POT_TOL           10 //ADC steps
+
 #define MIDI_CHANNEL      0x00
 #define POT_PIN           A0
-#define POT_MAX           590
-#define POT_MIN           0
+#define POT_MAX           1023
+#define POT_MIN           443
 #define PROGRAM_CHANGE    0xC0
 #define CONTINUE_MSG      0xB0
 #define EXP_PEDAL         0x0B
@@ -32,8 +34,8 @@ int CC_midi;
 
 void setup() {
 
-  Serial.begin(31250);/*The baud rate of midi*/
-  //Serial.begin(57600);
+  Serial1.begin(31250);/*The baud rate of midi*/
+  //erial.begin(9600);
 
   Timer1.initialize(POT_SAMPLE_TIME); // set a timer of length 100000 microseconds (or 0.1 sec - or 10Hz => the led will blink 5 times, 5 cycles of on-and-off, per second)
   Timer1.attachInterrupt( timerIsr ); // attach the service routine here
@@ -43,7 +45,7 @@ void setup() {
   /*Pass the buffer to the presets initilisation*/
   PRESETS.init(&midi_buff[0]);
 
-  PRESETS.set_mode(NONE);
+  PRESETS.set_mode(XYLO);
   /*reset this*/
   byte_to_send = 0;
 }
@@ -77,9 +79,12 @@ void loop() {
     send_program_change(p);
   }
 
-  if( (pot_value < (tmp_p_value-5)) || (pot_value > (tmp_p_value+5)) )
+
+
+
+  if( (pot_value < (tmp_p_value-POT_TOL)) || (pot_value > (tmp_p_value+POT_TOL)) )
   {
-    CC_midi = map(pot_value, POT_MIN, POT_MAX, 0, 127);/*127 = max midi CC value*/
+    CC_midi = map(pot_value, POT_MIN, POT_MAX, 0, 127); //127 = max midi CC value
     send_cont(CC_midi);
     set_treadle_led(CC_midi);
     tmp_p_value = pot_value;
@@ -119,6 +124,8 @@ void send_program_change(byte program)
   midi_buff[0] = (PROGRAM_CHANGE | MIDI_CHANNEL);
   /*Program byte*/
   midi_buff[1] =  (program & 0x7F);
+
+  LED.led_set_program(program);
   /*Now send this packet*/
   send_midi(2);
 }
@@ -139,7 +146,7 @@ void send_cont(byte cont)
 void send_midi(int len)
 {
   for (int a = 0 ; a < len; a++) {
-    Serial.write(midi_buff[a]);
+    Serial1.write(midi_buff[a]);
   }
 }
 
