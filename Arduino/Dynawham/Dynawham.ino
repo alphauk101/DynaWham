@@ -15,9 +15,15 @@ uint16_t byte_to_send = 0;
 #define POT_SAMPLE_TIME   100000
 
 #define POT_TOL           10 //ADC steps
+/*PIOs*/
+#define POT_PIN           A0
+#define FOOT_PEDAL_PIN    6
+#define QUAD_PIN          14
+
+#define QUAD_A            2
+#define QUAD_B            3
 
 #define MIDI_CHANNEL      0x00
-#define POT_PIN           A0
 #define POT_MAX           1023
 #define POT_MIN           443
 #define PROGRAM_CHANGE    0xC0
@@ -34,20 +40,44 @@ int CC_midi;
 
 void setup() {
 
-  Serial1.begin(31250);/*The baud rate of midi*/
-  //erial.begin(9600);
+  //Serial1.begin(31250);/*The baud rate of midi*/
+  Serial1.begin(9600);
 
   Timer1.initialize(POT_SAMPLE_TIME); // set a timer of length 100000 microseconds (or 0.1 sec - or 10Hz => the led will blink 5 times, 5 cycles of on-and-off, per second)
   Timer1.attachInterrupt( timerIsr ); // attach the service routine here
 
-  LED.led_init();
-
+  setup_hardware();
+  
   /*Pass the buffer to the presets initilisation*/
   PRESETS.init(&midi_buff[0]);
 
   PRESETS.set_mode(XYLO);
   /*reset this*/
   byte_to_send = 0;
+}
+
+void setup_hardware()
+{
+  LED.led_init();
+
+  /*Set the internal pull ups*/
+  digitalWrite(FOOT_PEDAL_PIN, HIGH);
+  pinMode(FOOT_PEDAL_PIN, INPUT);
+
+  while (1)
+  {
+    if (digitalRead(FOOT_PEDAL_PIN) == HIGH)
+    {
+      Serial1.println("HIGH");
+    } else {
+      Serial1.println("LOW");
+    }
+
+    delay(500);
+  }
+
+  /*Sample the pot value just so that we have the start postion of the pot.*/
+  pot_value = analogRead(POT_PIN);
 }
 
 bool dir = true;
@@ -70,7 +100,7 @@ void loop() {
   */
 
 
-  
+
 
   byte_to_send = PRESETS.nudge();
   if (byte_to_send > 0) {
@@ -82,14 +112,14 @@ void loop() {
 
 
 
-  if( (pot_value < (tmp_p_value-POT_TOL)) || (pot_value > (tmp_p_value+POT_TOL)) )
+  if ( (pot_value < (tmp_p_value - POT_TOL)) || (pot_value > (tmp_p_value + POT_TOL)) )
   {
     CC_midi = map(pot_value, POT_MIN, POT_MAX, 0, 127); //127 = max midi CC value
     send_cont(CC_midi);
     set_treadle_led(CC_midi);
     tmp_p_value = pot_value;
   }
-  
+
   delay(CMD_DELAY);
 }
 
