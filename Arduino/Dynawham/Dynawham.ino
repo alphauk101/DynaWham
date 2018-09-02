@@ -11,6 +11,12 @@
 led LED;
 presets PRESETS;
 
+/*Shows the state of the quadratic encoder*/
+#define QUAD_IDLE   0
+#define QUAD_UP     1
+#define QUAD_DOWN   2
+volatile uint8_t quad_state = QUAD_IDLE;
+
 uint16_t byte_to_send = 0;
 #define POT_SAMPLE_TIME   100000
 
@@ -18,7 +24,7 @@ uint16_t byte_to_send = 0;
 /*PIOs*/
 #define POT_PIN           A0
 #define FOOT_PEDAL_PIN    6
-#define QUAD_PIN          14
+#define Q_BUTT_PIN        14
 
 #define QUAD_A            2
 #define QUAD_B            3
@@ -47,7 +53,7 @@ void setup() {
   Timer1.attachInterrupt( timerIsr ); // attach the service routine here
 
   setup_hardware();
-  
+
   /*Pass the buffer to the presets initilisation*/
   PRESETS.init(&midi_buff[0]);
 
@@ -61,24 +67,24 @@ void setup_hardware()
   LED.led_init();
 
   /*Set the internal pull ups*/
-  digitalWrite(FOOT_PEDAL_PIN, HIGH);
   pinMode(FOOT_PEDAL_PIN, INPUT);
+  digitalWrite(FOOT_PEDAL_PIN, HIGH);
 
-  while (1)
-  {
-    if (digitalRead(FOOT_PEDAL_PIN) == HIGH)
-    {
-      Serial1.println("HIGH");
-    } else {
-      Serial1.println("LOW");
-    }
+  pinMode(Q_BUTT_PIN, INPUT);
+  digitalWrite(Q_BUTT_PIN, HIGH);
 
-    delay(500);
-  }
+  digitalWrite(QUAD_A, HIGH);
+  digitalWrite(QUAD_B, HIGH);
+  pinMode (QUAD_A, INPUT);
+  pinMode (QUAD_B, INPUT);
+
+  /**/
+  attachInterrupt(digitalPinToInterrupt(QUAD_A), quad_isr, CHANGE);
 
   /*Sample the pot value just so that we have the start postion of the pot.*/
   pot_value = analogRead(POT_PIN);
 }
+
 
 bool dir = true;
 uint8_t exp_v = 0;
@@ -119,6 +125,14 @@ void loop() {
     set_treadle_led(CC_midi);
     tmp_p_value = pot_value;
   }
+
+
+  if (quad_state == QUAD_UP){
+    Serial1.println("UP");
+  }else if (quad_state == QUAD_DOWN){
+    Serial1.println("DOWN");
+  }
+
 
   delay(CMD_DELAY);
 }
@@ -184,6 +198,19 @@ void timerIsr()
 {
   //Serial.println(analogRead(POT_PIN));
   pot_value = analogRead(POT_PIN);
+}
+
+volatile byte n;
+void quad_isr()
+{
+  n = digitalRead(QUAD_A);
+  if (n == HIGH) {
+    if (digitalRead(QUAD_B) == LOW) {
+      quad_state = QUAD_DOWN;
+    } else {
+      quad_state = QUAD_UP;
+    }
+  }/*Else ignore this intt*/
 }
 
 
